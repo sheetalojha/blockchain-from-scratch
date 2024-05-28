@@ -35,7 +35,18 @@ impl Header {
     /// Without the extrinsics themselves, we cannot calculate the final state
     /// so that information is passed in.
     pub fn child(&self, extrinsics_root: Hash, state: u64) -> Self {
-        Self { parent: hash(&self), height: self.height + 1, extrinsics_root, state, consensus_digest: 0 }
+        // Self { parent: hash(&self), height: self.height + 1, extrinsics_root, state, consensus_digest: 0 }
+        let mut block = Self { parent: hash(self),
+            height: self.height + 1,
+            extrinsics_root,
+            state, 
+            consensus_digest: 0 };
+    
+            let pow_nonce = solve_pow(&block);
+    
+            block.consensus_digest = pow_nonce;
+    
+            block
     }
 
     /// Verify a single child header.
@@ -73,6 +84,17 @@ impl Header {
         }
         next.verify_sub_chain(&chain[1..])
     }
+}
+
+fn solve_pow(h: &Header) -> u64{
+    let mut trial_header = h.clone();
+    while !verify_pow(&trial_header) {
+        trial_header.consensus_digest +=1;
+    }
+    trial_header.consensus_digest
+}
+fn verify_pow(h: &Header) -> bool {
+    hash(h) < hash::THRESHOLD
 }
 
 /// A complete Block is a header and the extrinsics.
